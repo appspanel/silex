@@ -21,6 +21,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\HttpKernelBrowser;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
+use Symfony\Component\Security\Core\User\InMemoryUser;
 
 /**
  * SecurityServiceProvider.
@@ -283,7 +284,7 @@ class SecurityServiceProviderTest extends WebTestCase
         $request->headers->set('PHP_AUTH_PW', 'foo');
         $app->handle($request);
         $this->assertInstanceOf('Symfony\Component\Security\Core\User\UserInterface', $app['user']);
-        $this->assertEquals('fabien', $app['user']->getUsername());
+        $this->assertEquals('fabien', $app['user']->getUserIdentifier());
     }
 
     public function testUserAsServiceString()
@@ -313,7 +314,7 @@ class SecurityServiceProviderTest extends WebTestCase
         $request->headers->set('PHP_AUTH_PW', 'foo');
         $app->handle($request);
         $this->assertInstanceOf('Symfony\Component\Security\Core\User\UserInterface', $app['user']);
-        $this->assertEquals('fabien', $app['user']->getUsername());
+        $this->assertEquals('fabien', $app['user']->getUserIdentifier());
     }
 
     public function testUserWithNoToken()
@@ -347,7 +348,8 @@ class SecurityServiceProviderTest extends WebTestCase
 
         $request = Request::create('/');
         $app->boot();
-        $app['security.token_storage']->setToken(new UsernamePasswordToken('foo', 'foo', 'foo'));
+        $user = new InMemoryUser('foo', null, ['foo']);
+        $app['security.token_storage']->setToken(new UsernamePasswordToken($user, 'foo', $user->getRoles()));
 
         $app->get('/', function () { return 'foo'; });
         $app->handle($request);
@@ -429,7 +431,7 @@ class SecurityServiceProviderTest extends WebTestCase
         $app->get('/', function () use ($app) {
             $user = $app['security.token_storage']->getToken()->getUser();
 
-            $content = \is_object($user) ? $user->getUsername() : 'ANONYMOUS';
+            $content = \is_object($user) ? $user->getUserIdentifier() : 'ANONYMOUS';
 
             if ($app['security.authorization_checker']->isGranted('IS_AUTHENTICATED_FULLY')) {
                 $content .= 'AUTHENTICATED';
@@ -472,8 +474,9 @@ class SecurityServiceProviderTest extends WebTestCase
         ]);
 
         $app->get('/', function () use ($app) {
-            $user = $app['security.token_storage']->getToken()->getUser();
-            $content = \is_object($user) ? $user->getUsername() : 'ANONYMOUS';
+            $token = $app['security.token_storage']->getToken();
+            $user = null !== $token ? $token->getUser() : null;
+            $content = \is_object($user) ? $user->getUserIdentifier() : 'ANONYMOUS';
 
             if ($app['security.authorization_checker']->isGranted('IS_AUTHENTICATED_FULLY')) {
                 $content .= 'AUTHENTICATED';
@@ -517,9 +520,10 @@ class SecurityServiceProviderTest extends WebTestCase
         ]);
 
         $app->get('/', function () use ($app) {
-            $user = $app['security.token_storage']->getToken()->getUser();
+            $token = $app['security.token_storage']->getToken();
+            $user = null !== $token ? $token->getUser() : null;
 
-            $content = \is_object($user) ? $user->getUsername() : 'ANONYMOUS';
+            $content = \is_object($user) ? $user->getUserIdentifier() : 'ANONYMOUS';
 
             return $content;
         })->bind('homepage');

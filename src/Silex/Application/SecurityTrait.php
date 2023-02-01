@@ -33,7 +33,7 @@ trait SecurityTrait
      */
     public function encodePassword(UserInterface $user, $password)
     {
-        return $this['security.encoder_factory']->getEncoder($user)->encodePassword($password, $user->getSalt());
+        return $this['security.hasher_factory']->getPasswordHasher($user)->hash($password, $user->getSalt());
     }
 
     /**

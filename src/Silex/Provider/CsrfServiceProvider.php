@@ -32,8 +32,8 @@ class CsrfServiceProvider implements ServiceProviderInterface
         };
 
         $app['csrf.token_storage'] = function ($app) {
-            if (isset($app['session'])) {
-                return new SessionTokenStorage($app['session'], $app['csrf.session_namespace']);
+            if (isset($app['request_stack'])) {
+                return new SessionTokenStorage($app['request_stack'], $app['csrf.session_namespace']);
             }
 
             return new NativeSessionTokenStorage($app['csrf.session_namespace']);

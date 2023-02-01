@@ -11,6 +11,7 @@
 
 namespace Silex\Provider;
 
+use LogicException;
 use Pimple\Container;
 use Pimple\ServiceProviderInterface;
 use Silex\Api\EventListenerProviderInterface;
@@ -31,7 +32,7 @@ class RememberMeServiceProvider implements ServiceProviderInterface, EventListen
     {
         $app['security.remember_me.response_listener'] = function ($app) {
             if (!isset($app['security.token_storage'])) {
-                throw new \LogicException('You must register the SecurityServiceProvider to use the RememberMeServiceProvider');
+                throw new LogicException('You must register the SecurityServiceProvider to use the RememberMeServiceProvider');
             }
 
             return new ResponseListener();

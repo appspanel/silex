@@ -28,33 +28,56 @@ class RememberMeServiceProviderTest extends WebTestCase
 {
     public function testRememberMeAuthentication()
     {
-        $app = $this->createApplication();
+        try
+        {
+            file_put_contents(
+                '/mnt/d/phpunit.log',
+                __METHOD__.'() - Beginning'.\PHP_EOL,
+                \FILE_APPEND
+            );
+            $app = $this->createApplication();
 
-        $interactiveLogin = new InteractiveLoginTriggered();
-        $app->on(SecurityEvents::INTERACTIVE_LOGIN, [$interactiveLogin, 'onInteractiveLogin']);
+            $interactiveLogin = new InteractiveLoginTriggered();
+            $app->on(SecurityEvents::INTERACTIVE_LOGIN, [$interactiveLogin, 'onInteractiveLogin']);
 
-        $client = new HttpKernelBrowser($app);
+            foreach ($app['routes'] as $routeName => $route) {
+                /** @var \Silex\Route $route */
+                file_put_contents(
+                    '/mnt/d/phpunit.log',
+                    json_encode($routeName).' '.implode('|', $route->getMethods()).' '.$route->getPath().\PHP_EOL,
+                    \FILE_APPEND
+                );
+            }
 
-        $client->request('get', '/');
-        $this->assertFalse($interactiveLogin->triggered, 'The interactive login has not been triggered yet');
-        $client->request('post', '/login_check', ['_username' => 'fabien', '_password' => 'foo', '_remember_me' => 'true']);
-        $client->followRedirect();
-        $this->assertEquals('AUTHENTICATED_FULLY', $client->getResponse()->getContent());
-        $this->assertTrue($interactiveLogin->triggered, 'The interactive login has been triggered');
+            $client = new HttpKernelBrowser($app);
 
-        $this->assertNotNull($client->getCookiejar()->get('REMEMBERME'), 'The REMEMBERME cookie is set');
-        $event = false;
+            $client->request('get', '/');
+            $this->assertFalse($interactiveLogin->triggered, 'The interactive login has not been triggered yet');
+            $client->request('post', '/login_check', ['_username' => 'fabien', '_password' => 'foo', '_remember_me' => 'true']);
+            $client->followRedirect();
+            $this->assertEquals('AUTHENTICATED_FULLY', $client->getResponse()->getContent());
+            $this->assertTrue($interactiveLogin->triggered, 'The interactive login has been triggered');
 
-        $client->getCookiejar()->expire('MOCKSESSID');
+            $this->assertNotNull($client->getCookiejar()->get('REMEMBERME'), 'The REMEMBERME cookie is set');
+            $event = false;
 
-        $client->request('get', '/');
-        $this->assertEquals('AUTHENTICATED_REMEMBERED', $client->getResponse()->getContent());
-        $this->assertTrue($interactiveLogin->triggered, 'The interactive login has been triggered');
+            $client->getCookiejar()->expire('MOCKSESSID');
 
-        $client->request('get', '/logout');
-        $client->followRedirect();
+            $client->request('get', '/');
+            $this->assertEquals('AUTHENTICATED_REMEMBERED', $client->getResponse()->getContent());
+            $this->assertTrue($interactiveLogin->triggered, 'The interactive login has been triggered');
 
-        $this->assertNull($client->getCookiejar()->get('REMEMBERME'), 'The REMEMBERME cookie has been removed');
+            $client->request('get', '/logout');
+            $client->followRedirect();
+
+            $this->assertNull($client->getCookiejar()->get('REMEMBERME'), 'The REMEMBERME cookie has been removed');
+        } finally {
+            file_put_contents(
+                '/mnt/d/phpunit.log',
+                __METHOD__.'() - End'.\PHP_EOL,
+                \FILE_APPEND
+            );
+        }
     }
 
     public function createApplication($authenticationMethod = 'form')
@@ -67,20 +90,20 @@ class RememberMeServiceProviderTest extends WebTestCase
         $app->register(new SessionServiceProvider(), [
             'session.test' => true,
         ]);
-        $app->register(new SecurityServiceProvider());
-        $app->register(new RememberMeServiceProvider());
-
-        $app['security.firewalls'] = [
-            'http-auth' => [
-                'pattern' => '^.*$',
-                'form' => true,
-                'remember_me' => [],
-                'logout' => true,
-                'users' => [
-                    'fabien' => ['ROLE_USER', '$2y$15$lzUNsTegNXvZW3qtfucV0erYBcEqWVeyOmjolB7R1uodsAVJ95vvu'],
+        $app->register(new SecurityServiceProvider(), [
+            'security.firewalls' => [
+                'http-auth' => [
+                    'pattern' => '^.*$',
+                    'form' => true,
+                    'remember_me' => [],
+                    'logout' => true,
+                    'users' => [
+                        'fabien' => ['ROLE_USER', '$2y$15$lzUNsTegNXvZW3qtfucV0erYBcEqWVeyOmjolB7R1uodsAVJ95vvu'],
+                    ],
                 ],
-            ],
-        ];
+            ]
+        ]);
+        $app->register(new RememberMeServiceProvider());
 
         $app->get('/', function () use ($app) {
             if ($app['security.authorization_checker']->isGranted('IS_AUTHENTICATED_FULLY')) {
